@@ -3,15 +3,20 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
+const path = require('path');
+const cors = require('cors');
 
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
+app.use(cors({
+  origin: ['http://127.0.0.1:5500', 'http://localhost:5500', 'http://localhost:5000'],
+  credentials: true
+}));
+app.use(express.static(path.join(__dirname, 'public')));
 
-const users = [
-  { id: 1, username: 'user1', passwordHash: bcrypt.hashSync('password', 8), role: 'user' },
-  { id: 2, username: 'admin1', passwordHash: bcrypt.hashSync('password', 8), role: 'admin' }
-];
+// Default users
+let users = [];
 
 let refreshTokens = [];
 
@@ -33,6 +38,24 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+app.post('/api/register', (req, res) => {
+  const { username, password, role } = req.body;
+  
+  if (users.find(u => u.username === username)) {
+    return res.status(400).json({ message: 'User already exists!' });
+  }
+
+  const newUser = {
+    id: users.length + 1,
+    username,
+    passwordHash: bcrypt.hashSync(password, 8),
+    role: role || 'user'
+  };
+  
+  users.push(newUser);
+  res.status(201).json({ message: 'User created successfully', user: { id: newUser.id, username: newUser.username, role: newUser.role } });
+});
+
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   const user = users.find(u => u.username === username);
@@ -50,16 +73,23 @@ app.post('/api/login', (req, res) => {
   res.cookie('accessToken', accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 15 * 60 * 1000
+    maxAge: 15 * 60 * 1000,
+    sameSite: 'lax'
   });
 
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 7 * 24 * 60 * 60 * 1000
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    sameSite: 'lax'
   });
 
-  res.json({ message: 'Logged in successfully', role: user.role });
+  res.json({ 
+    message: 'Logged in successfully', 
+    role: user.role,
+    accessToken_status: 'Generated & Stored in Cookie',
+    refreshToken_status: 'Generated & Stored in Cookie'
+  });
 });
 
 app.post('/api/refresh', (req, res) => {
@@ -76,7 +106,8 @@ app.post('/api/refresh', (req, res) => {
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 15 * 60 * 1000
+      maxAge: 15 * 60 * 1000,
+      sameSite: 'lax'
     });
 
     res.json({ message: 'Access token refreshed successfully' });
@@ -93,11 +124,21 @@ app.post('/api/logout', (req, res) => {
 });
 
 app.get('/api/profile', authenticateToken, (req, res) => {
-  res.json({ message: `Welcome ${req.user.username}, you are a ${req.user.role}.` });
+  res.json({ message: `Welcome ${req.user.username}, you are a ${req.user.role}.`, user: req.user });
 });
 
 app.get('/api/admin', authenticateToken, requireAdmin, (req, res) => {
   res.json({ message: 'Welcome to the admin dashboard!' });
+});
+
+app.delete('/api/admin/clear', authenticateToken, requireAdmin, (req, res) => {
+  users = [];
+  res.json({ message: "Baza to'liq tozalandi! Hamma foydalanuvchilar o'chirildi." });
+});
+
+app.get('/api/users', (req, res) => {
+    const safeUsers = users.map(u => ({ id: u.id, username: u.username, role: u.role }));
+    res.json({ users: safeUsers });
 });
 
 const PORT = process.env.PORT || 5000;
