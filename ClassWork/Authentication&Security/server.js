@@ -15,7 +15,6 @@ app.use(cors({
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Default users
 let users = [];
 
 let refreshTokens = [];
