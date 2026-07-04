@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const cors = require('cors');
+const crypto = require('crypto');
 
 const app = express();
 app.use(express.json());
@@ -63,7 +64,12 @@ app.post('/api/login', (req, res) => {
     return res.status(401).json({ message: 'Invalid credentials' });
   }
 
-  const payload = { id: user.id, username: user.username, role: user.role };
+  const payload = { 
+    id: user.id, 
+    username: user.username, 
+    role: user.role,
+    jti: crypto.randomBytes(8).toString('hex') // Har bir token butunlay farqli bo'lishi uchun tasodifiy kalit
+  };
   const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
   const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
   
@@ -86,8 +92,8 @@ app.post('/api/login', (req, res) => {
   res.json({ 
     message: 'Logged in successfully', 
     role: user.role,
-    accessToken_status: 'Generated & Stored in Cookie',
-    refreshToken_status: 'Generated & Stored in Cookie'
+    isbot_uchun_accessToken: accessToken, // <-- Ekranda ko'rib ishonishingiz uchun
+    isbot_uchun_refreshToken: refreshToken
   });
 });
 
@@ -99,7 +105,12 @@ app.post('/api/refresh', (req, res) => {
   jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
     if (err) return res.status(403).json({ message: 'Invalid refresh token' });
 
-    const payload = { id: user.id, username: user.username, role: user.role };
+    const payload = { 
+      id: user.id, 
+      username: user.username, 
+      role: user.role,
+      jti: crypto.randomBytes(8).toString('hex') // Har gal mutlaqo yangi ko'rinishdagi token yaratiladi
+    };
     const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
 
     res.cookie('accessToken', accessToken, {
@@ -109,7 +120,10 @@ app.post('/api/refresh', (req, res) => {
       sameSite: 'lax'
     });
 
-    res.json({ message: 'Access token refreshed successfully' });
+    res.json({ 
+        message: 'Access token refreshed successfully',
+        isbot_uchun_YANGI_accessToken: accessToken // <-- Aynan o'zgarganini ekranda ko'rasiz
+    });
   });
 });
 
