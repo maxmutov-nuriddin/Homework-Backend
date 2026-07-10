@@ -105,6 +105,9 @@ app.post('/api/refresh', (req, res) => {
   jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
     if (err) return res.status(403).json({ message: 'Invalid refresh token' });
 
+    // Eski refresh tokenni massivdan o'chiramiz (Refresh Token Rotation xavfsizligi)
+    refreshTokens = refreshTokens.filter(t => t !== token);
+
     const payload = { 
       id: user.id, 
       username: user.username, 
@@ -112,6 +115,10 @@ app.post('/api/refresh', (req, res) => {
       jti: crypto.randomBytes(8).toString('hex') // Har gal mutlaqo yangi ko'rinishdagi token yaratiladi
     };
     const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+    
+    // Yangi refresh tokenni bazaga qo'shish
+    refreshTokens.push(refreshToken);
 
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
@@ -120,9 +127,17 @@ app.post('/api/refresh', (req, res) => {
       sameSite: 'lax'
     });
 
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: 'lax'
+    });
+
     res.json({ 
-        message: 'Access token refreshed successfully',
-        isbot_uchun_YANGI_accessToken: accessToken // <-- Aynan o'zgarganini ekranda ko'rasiz
+        message: 'Access va Refresh tokenlar yangilandi (Rotation)',
+        isbot_uchun_YANGI_accessToken: accessToken,
+        isbot_uchun_YANGI_refreshToken: refreshToken
     });
   });
 });
