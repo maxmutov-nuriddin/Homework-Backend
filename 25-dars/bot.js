@@ -3,9 +3,6 @@ const { Telegraf, Markup } = require("telegraf");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// =============================================
-// 📚 QUIZ SAVOLLARI
-// =============================================
 const questions = [
   {
     id: 1,
@@ -42,14 +39,6 @@ const questions = [
   },
 ];
 
-// =============================================
-// 🔧 YORDAMCHI FUNKSIYALAR
-// =============================================
-
-/**
- * Savol uchun inline keyboard yaratadi
- * @param {number} questionId - Savol raqami (1 dan boshlanadi)
- */
 function buildQuestionKeyboard(questionId) {
   const q = questions[questionId - 1];
   return Markup.inlineKeyboard([
@@ -64,10 +53,6 @@ function buildQuestionKeyboard(questionId) {
   ]);
 }
 
-/**
- * Savol matnini formatlaydi
- * @param {number} questionId - Savol raqami
- */
 function buildQuestionText(questionId) {
   const q = questions[questionId - 1];
   return (
@@ -80,38 +65,23 @@ function buildQuestionText(questionId) {
   );
 }
 
-/**
- * Javob natijasi + Keyingi savol tugmasi bilan keyboard
- * @param {number} nextQuestionId - Keyingi savol raqami
- */
 function buildNextKeyboard(nextQuestionId) {
   return Markup.inlineKeyboard([
     [Markup.button.callback("⏭ Keyingi savol", `next:${nextQuestionId}`)],
   ]);
 }
 
-/**
- * Natija + Qayta boshlash tugmasi bilan keyboard
- */
 function buildRestartKeyboard() {
   return Markup.inlineKeyboard([
     [Markup.button.callback("🔁 Qayta boshlash", "restart")],
   ]);
 }
 
-// =============================================
-// 🗂 FOYDALANUVCHI NATIJALARINI SAQLASH
-// userScores: { chatId: { correct: 0, total: 0 } }
-// =============================================
 const userScores = {};
 
-// =============================================
-// 🚀 /start KOMANDASI
-// =============================================
 bot.start(async (ctx) => {
   const chatId = ctx.chat.id;
 
-  // Natijani noldan boshlash
   userScores[chatId] = { correct: 0 };
 
   await ctx.reply(
@@ -122,28 +92,20 @@ bot.start(async (ctx) => {
     { parse_mode: "Markdown" }
   );
 
-  // 1-savolni yuborish
   await ctx.reply(buildQuestionText(1), {
     parse_mode: "Markdown",
     ...buildQuestionKeyboard(1),
   });
 });
 
-// =============================================
-// 🎯 SAVOL JAVOBLARINI QAYTA ISHLASH
-// q1:A, q1:B, q1:C, q1:D
-// q2:A, q2:B, q2:C, q2:D
-// q3:A, q3:B, q3:C, q3:D
-// =============================================
 bot.action(/^q(\d+):([ABCD])$/, async (ctx) => {
   const chatId = ctx.chat.id;
-  const questionId = parseInt(ctx.match[1]); // Savol raqami
-  const selectedAnswer = ctx.match[2];       // Tanlangan javob
+  const questionId = parseInt(ctx.match[1]);
+  const selectedAnswer = ctx.match[2];
 
   const q = questions[questionId - 1];
   const isCorrect = selectedAnswer === q.correct;
 
-  // Natijani yangilash
   if (!userScores[chatId]) {
     userScores[chatId] = { correct: 0 };
   }
@@ -151,13 +113,11 @@ bot.action(/^q(\d+):([ABCD])$/, async (ctx) => {
     userScores[chatId].correct += 1;
   }
 
-  // 📣 Mini popup xabari (show_alert: false = kichik toast)
   await ctx.answerCbQuery(
     isCorrect ? "✅ To'g'ri javob!" : "❌ Xato javob!",
     { show_alert: false }
   );
 
-  // Natija matni
   const resultEmoji = isCorrect ? "✅" : "❌";
   const correctInfo = isCorrect
     ? ""
@@ -172,7 +132,6 @@ bot.action(/^q(\d+):([ABCD])$/, async (ctx) => {
   const isLastQuestion = questionId === questions.length;
 
   if (isLastQuestion) {
-    // ✅ Oxirgi savol - natijani ko'rsatish
     const score = userScores[chatId]?.correct ?? 0;
     const medal =
       score === 3 ? "🥇" : score === 2 ? "🥈" : score === 1 ? "🥉" : "😔";
@@ -194,7 +153,6 @@ bot.action(/^q(\d+):([ABCD])$/, async (ctx) => {
       }
     );
   } else {
-    // ⏭ Keyingi savol tugmasini ko'rsatish
     await ctx.editMessageText(resultText, {
       parse_mode: "Markdown",
       ...buildNextKeyboard(questionId + 1),
@@ -202,56 +160,39 @@ bot.action(/^q(\d+):([ABCD])$/, async (ctx) => {
   }
 });
 
-// =============================================
-// ⏭ KEYINGI SAVOL
-// next:2, next:3
-// =============================================
 bot.action(/^next:(\d+)$/, async (ctx) => {
   const nextQuestionId = parseInt(ctx.match[1]);
 
-  await ctx.answerCbQuery(); // Popup ko'rsatmasdan tasdiqlash
+  await ctx.answerCbQuery();
 
-  // Xabarni yangi savol bilan yangilash
   await ctx.editMessageText(buildQuestionText(nextQuestionId), {
     parse_mode: "Markdown",
     ...buildQuestionKeyboard(nextQuestionId),
   });
 });
 
-// =============================================
-// 🔁 QAYTA BOSHLASH
-// =============================================
 bot.action("restart", async (ctx) => {
   const chatId = ctx.chat.id;
 
-  // Natijani noldan boshlash
   userScores[chatId] = { correct: 0 };
 
   await ctx.answerCbQuery("🔄 Qayta boshlanmoqda...");
 
-  // 1-savolga qaytish (xabarni yangilash)
   await ctx.editMessageText(buildQuestionText(1), {
     parse_mode: "Markdown",
     ...buildQuestionKeyboard(1),
   });
 });
 
-// =============================================
-// ⚠️ XATO HANDLER
-// =============================================
 bot.catch((err, ctx) => {
   console.error(`❌ Xato yuz berdi [${ctx.updateType}]:`, err);
 });
 
-// =============================================
-// 🤖 BOTNI ISHGA TUSHIRISH
-// =============================================
 bot.launch(() => {
   console.log("✅ Inline Quiz Bot ishga tushdi!");
   console.log("📋 Savollar soni:", questions.length);
   console.log("🔗 Bot username:", bot.botInfo?.username ?? "yuklanmoqda...");
 });
 
-// Graceful shutdown
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));

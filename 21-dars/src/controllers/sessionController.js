@@ -1,6 +1,5 @@
 const RefreshSession = require("../models/RefreshSession");
 
-// GET /sessions (protected)
 const getSessions = async (req, res) => {
   try {
     const sessions = await RefreshSession.find({ userId: req.user._id })
@@ -14,7 +13,6 @@ const getSessions = async (req, res) => {
   }
 };
 
-// DELETE /sessions/:id (protected)
 const revokeSession = async (req, res) => {
   try {
     const { id } = req.params;
@@ -38,7 +36,6 @@ const revokeSession = async (req, res) => {
     res.json({ message: "Session revoked successfully" });
   } catch (error) {
     console.error("Revoke session error:", error.message);
-    // Handle invalid ObjectId format error
     if (error.kind === "ObjectId") {
       return res.status(400).json({ error: "Invalid session ID format" });
     }

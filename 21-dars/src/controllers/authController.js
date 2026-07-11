@@ -4,19 +4,16 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const RefreshSession = require("../models/RefreshSession");
 
-// Helper to hash a token
 const hashToken = (token) => {
   return crypto.createHash("sha256").update(token).digest("hex");
 };
 
-// Helper to generate access token
 const generateAccessToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_ACCESS_SECRET || "supersecret_access_key_987654321", {
     expiresIn: "15m",
   });
 };
 
-// POST /auth/register
 const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -53,7 +50,6 @@ const register = async (req, res) => {
   }
 };
 
-// POST /auth/login
 const login = async (req, res) => {
   try {
     const { email, password, deviceName } = req.body;
@@ -72,15 +68,12 @@ const login = async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    // 1. Generate access token (15m)
     const accessToken = generateAccessToken(user._id);
 
-    // 2. Generate refresh token (7 days)
     const refreshToken = crypto.randomBytes(40).toString("hex");
     const refreshTokenHash = hashToken(refreshToken);
 
-    // 3. Create RefreshSession in database
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await RefreshSession.create({
       userId: user._id,
       refreshTokenHash,
@@ -89,14 +82,12 @@ const login = async (req, res) => {
       expiresAt,
     });
 
-    // 4. Set Refresh Token as HTTP-only cookie
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // 5. Return access token as JSON
     res.json({ accessToken });
   } catch (error) {
     console.error("Login error:", error.message);
@@ -104,7 +95,6 @@ const login = async (req, res) => {
   }
 };
 
-// POST /auth/refresh
 const refresh = async (req, res) => {
   try {
     const { refreshToken } = req.cookies;
@@ -115,28 +105,23 @@ const refresh = async (req, res) => {
 
     const refreshTokenHash = hashToken(refreshToken);
 
-    // Find active session that matches the hash
     const session = await RefreshSession.findOne({
       refreshTokenHash,
       revokedAt: null,
       expiresAt: { $gt: new Date() },
     });
 
-    // If no matching session is found, return 401 and clear cookie
     if (!session) {
       res.clearCookie("refreshToken");
       return res.status(401).json({ error: "Invalid or expired session" });
     }
 
-    // Generate new refresh token (rotation!)
     const newRefreshToken = crypto.randomBytes(40).toString("hex");
     const newRefreshTokenHash = hashToken(newRefreshToken);
 
-    // Revoke the old session
     session.revokedAt = new Date();
     await session.save();
 
-    // Create a new session
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await RefreshSession.create({
       userId: session.userId,
@@ -146,14 +131,12 @@ const refresh = async (req, res) => {
       expiresAt,
     });
 
-    // Set new HTTP-only cookie
     res.cookie("refreshToken", newRefreshToken, {
       httpOnly: true,
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // Generate new access token
     const newAccessToken = generateAccessToken(session.userId);
 
     res.json({ accessToken: newAccessToken });
@@ -163,7 +146,6 @@ const refresh = async (req, res) => {
   }
 };
 
-// POST /auth/logout
 const logout = async (req, res) => {
   try {
     const { refreshToken } = req.cookies;
@@ -171,14 +153,12 @@ const logout = async (req, res) => {
     if (refreshToken) {
       const refreshTokenHash = hashToken(refreshToken);
       
-      // Revoke the matching session
       await RefreshSession.updateOne(
         { refreshTokenHash, revokedAt: null },
         { $set: { revokedAt: new Date() } }
       );
     }
 
-    // Always clear the cookie
     res.clearCookie("refreshToken");
     res.json({ message: "Successfully logged out" });
   } catch (error) {
@@ -187,7 +167,6 @@ const logout = async (req, res) => {
   }
 };
 
-// GET /me (protected)
 const getMe = async (req, res) => {
   try {
     res.json({

@@ -1,7 +1,6 @@
 require("dotenv/config");
 const { Telegraf } = require("telegraf");
 
-// ✅ BOT_TOKEN mavjudligini tekshirish
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
 if (!BOT_TOKEN) {
@@ -9,12 +8,8 @@ if (!BOT_TOKEN) {
   process.exit(1);
 }
 
-// ✅ Botni yaratish
 const bot = new Telegraf(BOT_TOKEN);
 
-// ─────────────────────────────────────────────
-// /start komandasi
-// ─────────────────────────────────────────────
 bot.start((ctx) => {
   const name = ctx.from.first_name || "foydalanuvchi";
 
@@ -26,9 +21,6 @@ bot.start((ctx) => {
   );
 });
 
-// ─────────────────────────────────────────────
-// /help komandasi
-// ─────────────────────────────────────────────
 bot.help((ctx) => {
   ctx.reply(
     `📋 Buyruqlar ro'yxati:\n\n` +
@@ -38,9 +30,6 @@ bot.help((ctx) => {
   );
 });
 
-// ─────────────────────────────────────────────
-// /about komandasi
-// ─────────────────────────────────────────────
 bot.command("about", (ctx) => {
   ctx.reply(
     `ℹ️ Bu bot haqida:\n\n` +
@@ -51,9 +40,6 @@ bot.command("about", (ctx) => {
   );
 });
 
-// ─────────────────────────────────────────────
-// Botni ishga tushirish
-// ─────────────────────────────────────────────
 bot
   .launch()
   .then(() => {
@@ -64,9 +50,6 @@ bot
     process.exit(1);
   });
 
-// ─────────────────────────────────────────────
-// Graceful shutdown (SIGINT / SIGTERM)
-// ─────────────────────────────────────────────
 process.once("SIGINT", () => {
   console.log("\n🛑 SIGINT qabul qilindi. Bot to'xtatilmoqda...");
   bot.stop("SIGINT");

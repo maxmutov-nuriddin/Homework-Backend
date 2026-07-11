@@ -1,7 +1,5 @@
 const Post = require("../models/Post");
 
-// GET /posts/public
-// Returns only posts with isPublic=true
 const getPublicPosts = async (req, res) => {
   try {
     const posts = await Post.find({ isPublic: true }).populate("owner", "username role");
@@ -12,8 +10,6 @@ const getPublicPosts = async (req, res) => {
   }
 };
 
-// POST /posts
-// Creates a post with owner=req.user._id
 const createPost = async (req, res) => {
   try {
     const { title, content, isPublic } = req.body;
@@ -36,8 +32,6 @@ const createPost = async (req, res) => {
   }
 };
 
-// GET /posts/me
-// Returns only the current user's posts
 const getMyPosts = async (req, res) => {
   try {
     const posts = await Post.find({ owner: req.user._id }).populate("owner", "username role");
@@ -48,8 +42,6 @@ const getMyPosts = async (req, res) => {
   }
 };
 
-// PUT /posts/:id
-// Admin can update any post. User can only update their own post.
 const updatePost = async (req, res) => {
   try {
     const { title, content, isPublic } = req.body;
@@ -59,7 +51,6 @@ const updatePost = async (req, res) => {
       return res.status(404).json({ error: "Post not found" });
     }
 
-    // Role and ownership check
     if (req.user.role !== "admin") {
       if (post.owner.toString() !== req.user._id.toString()) {
         return res.status(403).json({ error: "Sizga ruxsat yo'q (owner emas)" });
@@ -78,8 +69,6 @@ const updatePost = async (req, res) => {
   }
 };
 
-// DELETE /posts/:id
-// Admin can delete any post. User can only delete their own post.
 const deletePost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -88,7 +77,6 @@ const deletePost = async (req, res) => {
       return res.status(404).json({ error: "Post not found" });
     }
 
-    // Role and ownership check
     if (req.user.role !== "admin") {
       if (post.owner.toString() !== req.user._id.toString()) {
         return res.status(403).json({ error: "Sizga ruxsat yo'q (owner emas)" });
@@ -103,8 +91,6 @@ const deletePost = async (req, res) => {
   }
 };
 
-// GET /posts (Admin Only)
-// Returns all posts for the admin panel
 const getAllPosts = async (req, res) => {
   try {
     const posts = await Post.find().populate("owner", "username role");
@@ -115,8 +101,6 @@ const getAllPosts = async (req, res) => {
   }
 };
 
-// PATCH /posts/:id/toggle-public (Admin Only)
-// Toggles isPublic field between true and false
 const togglePublic = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);

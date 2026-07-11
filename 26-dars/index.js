@@ -3,16 +3,13 @@ const { Telegraf } = require("telegraf");
 const mongoose = require("mongoose");
 const User = require("./models/User");
 
-// ─── MongoDB ga ulanish ───────────────────────────────────────────────────────
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB ga ulandi"))
   .catch((err) => console.error("❌ MongoDB xatosi:", err));
 
-// ─── Bot ──────────────────────────────────────────────────────────────────────
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// Sanani formatlash yordamchi funksiya (YYYY-MM-DD)
 function formatDate(date) {
   const d = new Date(date);
   const year = d.getFullYear();
@@ -21,17 +18,14 @@ function formatDate(date) {
   return `${year}-${month}-${day}`;
 }
 
-// ─── /start buyrug'i ──────────────────────────────────────────────────────────
 bot.start(async (ctx) => {
   const telegramId = ctx.from.id;
   const ism = ctx.from.first_name || "Foydalanuvchi";
 
   try {
-    // Foydalanuvchi bazada bormi?
     let user = await User.findOne({ id: telegramId });
 
     if (!user) {
-      // Yangi foydalanuvchi — bazaga saqlash
       user = await User.create({
         id: telegramId,
         ism: ism,
@@ -42,7 +36,6 @@ bot.start(async (ctx) => {
         `Salom ${ism} 🔥\nMen seni birinchi marta ko'ryapman.\nSana: ${formatDate(user.firstSeenAt)}`
       );
     } else {
-      // Qaytib kelgan foydalanuvchi
       await ctx.reply(
         `Qaytib kelding ${ism} 🎉\nSen birinchi marta ${formatDate(user.firstSeenAt)} kuni kelgansan.`
       );
@@ -53,7 +46,6 @@ bot.start(async (ctx) => {
   }
 });
 
-// ─── /me buyrug'i ─────────────────────────────────────────────────────────────
 bot.command("me", async (ctx) => {
   const telegramId = ctx.from.id;
 
@@ -75,7 +67,6 @@ bot.command("me", async (ctx) => {
   }
 });
 
-// ─── /count buyrug'i ──────────────────────────────────────────────────────────
 bot.command("count", async (ctx) => {
   try {
     const count = await User.countDocuments();
@@ -86,9 +77,7 @@ bot.command("count", async (ctx) => {
   }
 });
 
-// ─── Botni ishga tushirish ────────────────────────────────────────────────────
 bot.launch(() => console.log("🤖 Bot ishga tushdi!"));
 
-// Graceful stop
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
